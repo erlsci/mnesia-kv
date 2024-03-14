@@ -7,7 +7,7 @@ key-value store built with [Mnesia](http://www.erlang.org/doc/apps/mnesia/)*
 
 # mnesia-kv
 
-Note: this project is just a fork of [mnkv](https://github.com/lindenbaum/lbm_kv), created to push out some more recent releases.
+Note: this project is just a fork of [lbm_kv](https://github.com/lindenbaum/lbm_kv), created to push out some more recent releases.
 
 ## About
 
