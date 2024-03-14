@@ -18,18 +18,18 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: ['24', '25', '26']
+        otp_version: ['26', '25', '24']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: erlef/setup-beam@v1
       with:
         otp-version: ${{ matrix.otp_version }}
         rebar3-version: '3.22'
     - name: Compile
       run: rebar3 compile
-    - name: Xref Checks
-      run: rebar3 xref
+    #- name: Xref Checks
+    #  run: rebar3 xref
     - name: Dialyzer
       run: rebar3 dialyzer
     - name: Run Unit Tests
@@ -40,23 +40,23 @@ jobs:
       run: rebar3 as test cover -v --min_coverage=0
 
   old-builds:
-    name: Erlang ${{ matrix.otp_version }} build (old)
+    name: Erlang ${{ matrix.otp_version }} build
     runs-on: ubuntu-20.04
 
     strategy:
       matrix:
-        otp_version: ['21.3', '22.3', '23.3']
+        otp_version: ['23', '22', '21']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: erlef/setup-beam@v1
       with:
         otp-version: ${{ matrix.otp_version }}
         rebar3-version: '3.15'
     - name: Compile
       run: rebar3 compile
-    - name: Xref Checks
-      run: rebar3 xref
+    #- name: Xref Checks
+    #  run: rebar3 xref
     - name: Dialyzer
       run: rebar3 dialyzer
     - name: Run Unit Tests

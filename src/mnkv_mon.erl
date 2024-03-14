@@ -21,13 +21,13 @@
 %%% A registered server that manages dynamic expansion and reduction of the
 %%% Mnesia cluster. The server also subscribes for Mnesia system events. In
 %%% case a DB inconsistency is detected (split brain) the server tries to
-%%% resolve the conflict using the vector clocks of the `lbm_kv' tables as well
+%%% resolve the conflict using the vector clocks of the `mnkv' tables as well
 %%% as user-provided resolve callbacks. If conflict resolution fails, one of the
 %%% conflicting nodes will be restarted!
 %%% @end
 %%%=============================================================================
 
--module(lbm_kv_mon).
+-module(mnkv_mon).
 
 -behaviour(gen_server).
 
@@ -43,7 +43,7 @@
          code_change/3,
          terminate/2]).
 
--include("lbm_kv.hrl").
+-include("mnkv.hrl").
 
 -define(DUMP, "mnesia_core.dump").
 -define(ERR(Fmt, Args), error_logger:error_msg(Fmt, Args)).
@@ -62,12 +62,12 @@ start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %%------------------------------------------------------------------------------
 %% @private
-%% Print the all `lbm_kv` tables visible to this node.
+%% Print the all `mnkv` tables visible to this node.
 %%------------------------------------------------------------------------------
 -spec info() -> ok.
 info() ->
     Tables = relevant_tables(node()),
-    io:format("~w lbm_kv tables visible to ~s~n", [length(Tables), node()]),
+    io:format("~w mnkv tables visible to ~s~n", [length(Tables), node()]),
     [io:format(" * ~s~n", [Table]) || Table <- Tables],
     io:format("~n").
 
@@ -151,7 +151,7 @@ handle_mnesia_event(_Event, _State) ->
 %% nodes, as long as one of the schema's to merge is clean (no tables with the
 %% same name on both nodes). By default tables are assigned a `cookie' value
 %% that differs even for tables with the same name and makes them incompatible
-%% by default. `lbm_kv' avoids this by assigning each of its tables a custom
+%% by default. `mnkv' avoids this by assigning each of its tables a custom
 %% cookie (which is always the same). However, even using this trick, special
 %% magic is needed to merge these tables. Each of these tables must be
 %% configured as RAM copy on the remote node __before__ merging the schemas.
@@ -163,13 +163,13 @@ expand(Node) ->
 expand(true, Node) ->
     LocalTables = relevant_tables(node()),
     RemoteTables = relevant_tables(Node),
-    ?LBM_KV_DBG("Relevant tables on ~s: ~w~n", [node(), LocalTables]),
-    ?LBM_KV_DBG("Relevant tables on ~s: ~w~n", [Node, RemoteTables]),
+    ?MNKV_DBG("Relevant tables on ~s: ~w~n", [node(), LocalTables]),
+    ?MNKV_DBG("Relevant tables on ~s: ~w~n", [Node, RemoteTables]),
 
     LocalOnlyTables = LocalTables -- RemoteTables,
     RemoteOnlyTables = RemoteTables -- LocalTables,
-    ?LBM_KV_DBG("Local-only tables on ~s: ~w~n", [node(), LocalOnlyTables]),
-    ?LBM_KV_DBG("Local-only tables on ~s: ~w~n", [Node, RemoteOnlyTables]),
+    ?MNKV_DBG("Local-only tables on ~s: ~w~n", [node(), LocalOnlyTables]),
+    ?MNKV_DBG("Local-only tables on ~s: ~w~n", [Node, RemoteOnlyTables]),
 
     LocalSchema = get_cookie(node(), schema),
     RemoteSchema = get_cookie(Node, schema),
@@ -243,8 +243,8 @@ connect_nodes_user_fun(TablesToMerge, Node) ->
     fun(SchemaMergeFun) ->
             case SchemaMergeFun(TablesToMerge) of
                 Result = {merged, OldFriends, NewFriends} ->
-                    ?LBM_KV_DBG("Schemas successfully merged~n", []),
-                    ?LBM_KV_DBG("NewFriends: ~w~n", [NewFriends]),
+                    ?MNKV_DBG("Schemas successfully merged~n", []),
+                    ?MNKV_DBG("NewFriends: ~w~n", [NewFriends]),
 
                     %% Sorry, but we must be part of `db_nodes' ourselves or I
                     %% loose my mind (see mnesia_schema:do_merge_schema/1).
@@ -280,7 +280,7 @@ connect_nodes_user_fun(TablesToMerge, Node) ->
                             MergeWith = NewFriends -- OldFriends
                     end,
 
-                    case lbm_kv_merge:tables(TablesToMerge, MergeWith) of
+                    case mnkv_merge:tables(TablesToMerge, MergeWith) of
                         ok              -> Result;
                         {error, Reason} -> mnesia:abort(Reason)
                     end;
@@ -342,7 +342,7 @@ add_table_copy(FromNode, ToNode, Table) ->
 
 %%------------------------------------------------------------------------------
 %% @private
-%% Returns the tables on `Node' that are managed by `lbm_kv'.
+%% Returns the tables on `Node' that are managed by `mnkv'.
 %%------------------------------------------------------------------------------
 relevant_tables(Node) ->
     Tables = rpc_mnesia(Node, system_info, [tables]),
@@ -350,9 +350,9 @@ relevant_tables(Node) ->
 
 %%------------------------------------------------------------------------------
 %% @private
-%% Returns whether a table is managed by `lbm_kv'.
+%% Returns whether a table is managed by `mnkv'.
 %%------------------------------------------------------------------------------
-is_relevant(Node, Table) -> get_cookie(Node, Table) =:= ?LBM_KV_COOKIE.
+is_relevant(Node, Table) -> get_cookie(Node, Table) =:= ?MNKV_COOKIE.
 
 %%------------------------------------------------------------------------------
 %% @private
@@ -378,7 +378,7 @@ get_db_nodes(Node) -> rpc_mnesia(Node, system_info, [db_nodes]).
 %% when a call is local and optimizes that.
 %%------------------------------------------------------------------------------
 rpc_mnesia(Node, Function, Args) ->
-    Timeout = application:get_env(lbm_kv, rpc_timeout, ?LBM_KV_RPC_TIMEOUT),
+    Timeout = application:get_env(mnkv, rpc_timeout, ?MNKV_RPC_TIMEOUT),
     case rpc:call(Node, mnesia, Function, Args, Timeout) of
         {badrpc, Reason} -> {error, Reason};
         Result           -> Result

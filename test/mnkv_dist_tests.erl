@@ -18,7 +18,7 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
 
--module(lbm_kv_dist_tests).
+-module(mnkv_dist_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -47,7 +47,7 @@ unique_table() ->
     error_logger:info_msg("TEST: ~s~n", [unique_table]),
 
     %% create table locally
-    Create = fun() -> ok = lbm_kv:create(?TABLE) end,
+    Create = fun() -> ok = mnkv:create(?TABLE) end,
     Create(),
 
     %% start three slave nodes
@@ -56,7 +56,7 @@ unique_table() ->
     {ok, Slave3} = slave_setup(slave3),
 
     %% Put a value from the local node
-    PutValue = fun() -> {ok, []} = lbm_kv:put(?TABLE, key, value) end,
+    PutValue = fun() -> {ok, []} = mnkv:put(?TABLE, key, value) end,
     PutValue(),
 
     %% Wait for the table to become available on all nodes
@@ -66,25 +66,25 @@ unique_table() ->
     ?assertEqual(ok, slave_execute(Slave3, Wait)),
 
     %% Read the written value from all nodes
-    GetValue = fun() -> {ok, [{key, value}]} = lbm_kv:get(?TABLE, key) end,
+    GetValue = fun() -> {ok, [{key, value}]} = mnkv:get(?TABLE, key) end,
     GetValue(),
     ?assertEqual(ok, slave_execute(Slave1, GetValue)),
     ?assertEqual(ok, slave_execute(Slave2, GetValue)),
     ?assertEqual(ok, slave_execute(Slave3, GetValue)),
 
     %% Read the whole table from all nodes
-    GetAll = fun() -> {ok, [{key, value}]} = lbm_kv:match_key(?TABLE, '_') end,
+    GetAll = fun() -> {ok, [{key, value}]} = mnkv:match_key(?TABLE, '_') end,
     GetAll(),
     ?assertEqual(ok, slave_execute(Slave1, GetAll)),
     ?assertEqual(ok, slave_execute(Slave2, GetAll)),
     ?assertEqual(ok, slave_execute(Slave3, GetAll)),
 
     %% Delete the value from a slave node
-    Update = fun() -> {ok, [{key, value}]} = lbm_kv:del(?TABLE, key) end,
+    Update = fun() -> {ok, [{key, value}]} = mnkv:del(?TABLE, key) end,
     ?assertEqual(ok, slave_execute(Slave1, Update)),
 
     %% Read the update from all nodes
-    GetEmpty = fun() -> {ok, []} = lbm_kv:get(?TABLE, key) end,
+    GetEmpty = fun() -> {ok, []} = mnkv:get(?TABLE, key) end,
     GetEmpty(),
     ?assertEqual(ok, slave_execute(Slave1, GetEmpty)),
     ?assertEqual(ok, slave_execute(Slave2, GetEmpty)),
@@ -118,13 +118,13 @@ simple_netsplit() ->
     {ok, Slave2} = slave_setup(slave2),
 
     %% create table
-    Create = fun() -> ok = lbm_kv:create(?TABLE) end,
+    Create = fun() -> ok = mnkv:create(?TABLE) end,
     Create(),
     ?assertEqual(ok, slave_execute(Slave1, Create)),
     ?assertEqual(ok, slave_execute(Slave2, Create)),
 
     %% Put some (non-conflicting) values
-    PutValue0 = fun() -> {ok, []} = lbm_kv:put(?TABLE, node(), value0) end,
+    PutValue0 = fun() -> {ok, []} = mnkv:put(?TABLE, node(), value0) end,
     PutValue0(),
     ?assertEqual(ok, slave_execute(Slave1, PutValue0)),
     ?assertEqual(ok, slave_execute(Slave2, PutValue0)),
@@ -132,14 +132,14 @@ simple_netsplit() ->
     %% Read the values written before from all nodes
     NumValues = length([node()] ++ erlang:nodes()),
     GetValues = fun() ->
-                        {ok, Vals} = lbm_kv:match_key(?TABLE, '_'),
+                        {ok, Vals} = mnkv:match_key(?TABLE, '_'),
                         NumValues = length(Vals)
                 end,
     GetValues(),
     ?assertEqual(ok, slave_execute(Slave1, GetValues)),
     ?assertEqual(ok, slave_execute(Slave2, GetValues)),
 
-    PutValue1 = fun() -> {ok, _} = lbm_kv:put(?TABLE, node(), value1) end,
+    PutValue1 = fun() -> {ok, _} = mnkv:put(?TABLE, node(), value1) end,
 
     %% simulate netsplit between both slaves
     Netsplit = fun() ->
@@ -160,7 +160,7 @@ simple_netsplit() ->
     %% sorry, but there's no event we can wait for...
     timer:sleep(1000),
 
-    GetValue1 = fun(K) -> {ok, [{K, value1}]} = lbm_kv:get(?TABLE, K) end,
+    GetValue1 = fun(K) -> {ok, [{K, value1}]} = mnkv:get(?TABLE, K) end,
     GetValues1 = fun() -> [GetValue1(N) || N <- nodes()] end,
     GetValues1(),
     ?assertEqual(ok, slave_execute(Slave1, GetValues1)),
@@ -185,7 +185,7 @@ setup() ->
 %% @private
 %%------------------------------------------------------------------------------
 setup_apps() ->
-    {ok, Apps} = application:ensure_all_started(lbm_kv, permanent),
+    {ok, Apps} = application:ensure_all_started(mnkv, permanent),
     Apps.
 
 %%------------------------------------------------------------------------------

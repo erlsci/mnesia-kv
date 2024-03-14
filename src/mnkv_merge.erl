@@ -18,13 +18,13 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%
 %%% @doc
-%%% This module implements the `lbm_kv' table merge strategy. Currently this
-%%% strategy is based on vector clocks provided in {@link lbm_kv_vclock}. If
+%%% This module implements the `mnkv' table merge strategy. Currently this
+%%% strategy is based on vector clocks provided in {@link mnkv_vclock}. If
 %%% the algorithm encounters diverged entries for a specific key, it tries to
 %%% call a user defined callback for the respective table. As last resort one
 %%% of the nodes with conflicting tables will be restarted.
 %%%
-%%% For more information about user defined callbacks, refer to the {@lbm_kv}
+%%% For more information about user defined callbacks, refer to the {@mnkv}
 %%% behaviour description.
 %%%
 %%% This code is inspired by the work put in the `unsplit' project by Ulf Wiger,
@@ -34,7 +34,7 @@
 %%% @end
 %%%=============================================================================
 
--module(lbm_kv_merge).
+-module(mnkv_merge).
 
 %% Internal API
 -export([tables/2]).
@@ -42,7 +42,7 @@
 %% Remoting API
 -export([handle_actions/1]).
 
--include("lbm_kv.hrl").
+-include("mnkv.hrl").
 
 %%%=============================================================================
 %%% Internal API
@@ -59,14 +59,14 @@
 %% other island should already be consistent. Although dirty, merge actions will
 %% be replicated to the other nodes of the island.
 %%------------------------------------------------------------------------------
--spec tables([lbm_kv:table()], [node()]) -> ok | {error, term()}.
+-spec tables([mnkv:table()], [node()]) -> ok | {error, term()}.
 tables(_Tables, []) ->
     ok;
 tables(Tables, [Node | _]) ->
-    ?LBM_KV_DBG("Merging with ~s:~n", [Node]),
+    ?MNKV_DBG("Merging with ~s:~n", [Node]),
     tables(Tables, Node, ok).
 tables([Table | Tables], Node, ok) ->
-    ?LBM_KV_DBG(" * ~w~n", [Table]),
+    ?MNKV_DBG(" * ~w~n", [Table]),
     tables(Tables, Node, merge_table(Node, Table));
 tables(_, _, Result) ->
     Result.
@@ -107,19 +107,19 @@ merge_entries([], _, _, _, Acc) ->
 merge_entries([Key | Keys], Local, Remote, Table, Acc = {LAcc, RAcc}) ->
     case merge_entry(Local, Remote, Table, Key) of
         {all, Action} ->
-            ?LBM_KV_DBG("   - ~w => {all,~w}~n", [Key, Action]),
+            ?MNKV_DBG("   - ~w => {all,~w}~n", [Key, Action]),
             NewAcc = {[Action | LAcc], [Action | RAcc]},
             merge_entries(Keys, Local, Remote, Table, NewAcc);
         {local, Action} ->
-            ?LBM_KV_DBG("   - ~w => {local,~w}~n", [Key, Action]),
+            ?MNKV_DBG("   - ~w => {local,~w}~n", [Key, Action]),
             NewAcc = {[Action | LAcc], RAcc},
             merge_entries(Keys, Local, Remote, Table, NewAcc);
         {remote, Action} ->
-            ?LBM_KV_DBG("   - ~w => {remote,~w}~n", [Key, Action]),
+            ?MNKV_DBG("   - ~w => {remote,~w}~n", [Key, Action]),
             NewAcc = {LAcc, [Action | RAcc]},
             merge_entries(Keys, Local, Remote, Table, NewAcc);
         noop ->
-            ?LBM_KV_DBG("   - ~w => noop~n", [Key]),
+            ?MNKV_DBG("   - ~w => noop~n", [Key]),
             merge_entries(Keys, Local, Remote, Table, Acc);
         Error = {error, _} ->
             Error
@@ -139,19 +139,19 @@ merge_entry(Local, Remote, Table, Key) ->
             {remote, {dirty_write, [Table, Record]}};
         {[], [Record]} ->
             {local, {dirty_write, [Table, Record]}};
-        {[#lbm_kv{val = V}], [Record = #lbm_kv{val = V}]} ->
+        {[#mnkv{val = V}], [Record = #mnkv{val = V}]} ->
             {local, {dirty_write, [Table, Record]}};
-        {[L = #lbm_kv{ver = LVer}], [R = #lbm_kv{ver = RVer}]} ->
-            case lbm_kv_vclock:descends(LVer, RVer) of
+        {[L = #mnkv{ver = LVer}], [R = #mnkv{ver = RVer}]} ->
+            case mnkv_vclock:descends(LVer, RVer) of
                 true ->
                     {remote, {dirty_write, [Table, L]}};
                 false ->
-                    case lbm_kv_vclock:descends(RVer, LVer) of
+                    case mnkv_vclock:descends(RVer, LVer) of
                         true  -> {local, {dirty_write, [Table, R]}};
                         false -> user_callback(Table, Key, L, R)
                     end
             end;
-        {[LRecord], [RRecord]} -> %% merging non-lbm_kv table
+        {[LRecord], [RRecord]} -> %% merging non-mnkv table
             user_callback(Table, Key, LRecord, RRecord);
         {{error, Reason}, _} ->
             {error, {Local, Reason}};
@@ -165,11 +165,11 @@ merge_entry(Local, Remote, Table, Key) ->
 %% on an arbitrary node (the one that connects the nodes and merges the
 %% schemas).
 %%
-%% For more information refer to the {@lbm_kv} behaviour description.
+%% For more information refer to the {@mnkv} behaviour description.
 %%
-%% Why is this function written as it is (no pattern matching on #lbm_kv{})?
+%% Why is this function written as it is (no pattern matching on #mnkv{})?
 %% This hidden feature could (in the future) be used to call the user-provided
-%% callback to merge non-lbm_kv tables ;)
+%% callback to merge non-mnkv tables ;)
 %%------------------------------------------------------------------------------
 user_callback(Table, Key, LRecord, RRecord) when is_atom(Table) ->
     case code:ensure_loaded(Table) of
@@ -183,9 +183,9 @@ user_callback(Table, Key, LRecord, RRecord) when is_atom(Table) ->
                             {remote, {dirty_write, [Table, LRecord]}};
                         {{value, RVal}, _} ->
                             {local, {dirty_write, [Table, RRecord]}};
-                        {{value, Val}, #lbm_kv{ver = OldVer}} ->
-                            Ver = lbm_kv_vclock:increment(node(), OldVer),
-                            Record = #lbm_kv{key = Key, val = Val, ver = Ver},
+                        {{value, Val}, #mnkv{ver = OldVer}} ->
+                            Ver = mnkv_vclock:increment(node(), OldVer),
+                            Record = #mnkv{key = Key, val = Val, ver = Ver},
                             {all, {dirty_write, [Table, Record]}};
                         {{value, Record}, _} ->
                             {all, {dirty_write, [Table, Record]}};
@@ -211,7 +211,7 @@ user_callback(Table, Key, _, _) ->
 %%------------------------------------------------------------------------------
 %% @private
 %%------------------------------------------------------------------------------
-get_value(#lbm_kv{val = Val}) -> Val;
+get_value(#mnkv{val = Val}) -> Val;
 get_value(Val)                -> Val.
 
 %%------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ get_all_keys(Nodes, Table) ->
 %% when a call is local and optimizes that.
 %%------------------------------------------------------------------------------
 rpc_mnesia(Node, Function, Args) ->
-    Timeout = application:get_env(lbm_kv, rpc_timeout, ?LBM_KV_RPC_TIMEOUT),
+    Timeout = application:get_env(mnkv, rpc_timeout, ?MNKV_RPC_TIMEOUT),
     check_rpc(rpc:call(Node, mnesia, Function, Args, Timeout)).
 
 %%------------------------------------------------------------------------------
@@ -244,8 +244,8 @@ rpc_mnesia(Node, Function, Args) ->
 %% result in connection loss due to inter-node heartbeats timing out.
 %%------------------------------------------------------------------------------
 rpc_merge(Node, Actions) ->
-    BatchSize = application:get_env(lbm_kv, batch_size, 10),
-    Timeout = application:get_env(lbm_kv, rpc_timeout, ?LBM_KV_RPC_TIMEOUT),
+    BatchSize = application:get_env(mnkv, batch_size, 10),
+    Timeout = application:get_env(mnkv, rpc_timeout, ?MNKV_RPC_TIMEOUT),
     rpc_merge(Node, Actions, BatchSize, Timeout + BatchSize * 200).
 rpc_merge(_Node, [], _BatchSize, _Timeout) ->
     ok;

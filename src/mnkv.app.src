@@ -18,13 +18,13 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
 {application,
- lbm_kv,
+ mnkv,
  [
   {description, "A simple, distributed, Mnesia-based key-value-store."},
-  {vsn, "0.0.3"},
+  {vsn, "0.1.0"},
   {registered,
    [
-    lbm_kv_mon
+    mnesiakv_mon
    ]},
   {applications,
    [
@@ -33,7 +33,7 @@
     sasl,
     mnesia
    ]},
-  {mod, {lbm_kv, []}},
+  {mod, {mnkv, []}},
   {env, []},
   {maintainers, ["Tobias Schlager", "Sven Heyll", "Timo Koepke"]},
   {licenses, ["MIT"]},

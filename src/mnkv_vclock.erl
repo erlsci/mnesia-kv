@@ -32,7 +32,7 @@
 %% This module is a renamed version of the `vclock.erl' module shipped with
 %% `riak_core'.
 %% @see https://github.com/basho/riak_core
--module(lbm_kv_vclock).
+-module(mnkv_vclock).
 
 -export([fresh/0,
          fresh/2,
@@ -272,20 +272,20 @@ get_property(Key, PairList) ->
 
 % doc Serves as both a trivial test and some example code.
 example_test() ->
-    A = lbm_kv_vclock:fresh(),
-    B = lbm_kv_vclock:fresh(),
-    A1 = lbm_kv_vclock:increment(a, A),
-    B1 = lbm_kv_vclock:increment(b, B),
-    true = lbm_kv_vclock:descends(A1,A),
-    true = lbm_kv_vclock:descends(B1,B),
-    false = lbm_kv_vclock:descends(A1,B1),
-    A2 = lbm_kv_vclock:increment(a, A1),
-    C = lbm_kv_vclock:merge([A2, B1]),
-    C1 = lbm_kv_vclock:increment(c, C),
-    true = lbm_kv_vclock:descends(C1, A2),
-    true = lbm_kv_vclock:descends(C1, B1),
-    false = lbm_kv_vclock:descends(B1, C1),
-    false = lbm_kv_vclock:descends(B1, A1),
+    A = mnkv_vclock:fresh(),
+    B = mnkv_vclock:fresh(),
+    A1 = mnkv_vclock:increment(a, A),
+    B1 = mnkv_vclock:increment(b, B),
+    true = mnkv_vclock:descends(A1,A),
+    true = mnkv_vclock:descends(B1,B),
+    false = mnkv_vclock:descends(A1,B1),
+    A2 = mnkv_vclock:increment(a, A1),
+    C = mnkv_vclock:merge([A2, B1]),
+    C1 = mnkv_vclock:increment(c, C),
+    true = mnkv_vclock:descends(C1, A2),
+    true = mnkv_vclock:descends(C1, B1),
+    false = mnkv_vclock:descends(B1, C1),
+    false = mnkv_vclock:descends(B1, A1),
     ok.
 
 prune_small_test() ->
@@ -362,7 +362,7 @@ merge_test() ->
            {<<"4">>, {4, 4}}],
     VC2 = [{<<"3">>, {3, 3}},
            {<<"4">>, {3, 3}}],
-    ?assertEqual([], merge(lbm_kv_vclock:fresh())),
+    ?assertEqual([], merge(mnkv_vclock:fresh())),
     ?assertEqual([{<<"1">>,{1,1}},{<<"2">>,{2,2}},{<<"3">>,{3,3}},{<<"4">>,{4,4}}],
                  merge([VC1, VC2])).
 
@@ -370,22 +370,22 @@ merge_less_left_test() ->
     VC1 = [{<<"5">>, {5, 5}}],
     VC2 = [{<<"6">>, {6, 6}}, {<<"7">>, {7, 7}}],
     ?assertEqual([{<<"5">>, {5, 5}},{<<"6">>, {6, 6}}, {<<"7">>, {7, 7}}],
-                 lbm_kv_vclock:merge([VC1, VC2])).
+                 mnkv_vclock:merge([VC1, VC2])).
 
 merge_less_right_test() ->
     VC1 = [{<<"6">>, {6, 6}}, {<<"7">>, {7, 7}}],
     VC2 = [{<<"5">>, {5, 5}}],
     ?assertEqual([{<<"5">>, {5, 5}},{<<"6">>, {6, 6}}, {<<"7">>, {7, 7}}],
-                 lbm_kv_vclock:merge([VC1, VC2])).
+                 mnkv_vclock:merge([VC1, VC2])).
 
 merge_same_id_test() ->
     VC1 = [{<<"1">>, {1, 2}},{<<"2">>,{1,4}}],
     VC2 = [{<<"1">>, {1, 3}},{<<"3">>,{1,5}}],
     ?assertEqual([{<<"1">>, {1, 3}},{<<"2">>,{1,4}},{<<"3">>,{1,5}}],
-                 lbm_kv_vclock:merge([VC1, VC2])).
+                 mnkv_vclock:merge([VC1, VC2])).
 
 get_entry_test() ->
-    VC = lbm_kv_vclock:fresh(),
+    VC = mnkv_vclock:fresh(),
     VC1 = increment(a, increment(c, increment(b, increment(a, VC)))),
     ?assertMatch({ok, {a, {2, _}}}, get_dot(a, VC1)),
     ?assertMatch({ok, {b, {1, _}}}, get_dot(b, VC1)),
@@ -393,7 +393,7 @@ get_entry_test() ->
     ?assertEqual(undefined, get_dot(d, VC1)).
 
 valid_entry_test() ->
-    VC = lbm_kv_vclock:fresh(),
+    VC = mnkv_vclock:fresh(),
     VC1 = increment(c, increment(b, increment(a, VC))),
     [begin
          {ok, E} = get_dot(Actor, VC1),

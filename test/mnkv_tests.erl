@@ -18,7 +18,7 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
 
--module(lbm_kv_tests).
+-module(mnkv_tests).
 
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
@@ -63,8 +63,8 @@ bad_type() ->
          end)).
 
 empty() ->
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')).
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')).
 
 put3_get_and_del2() ->
     qc(?FORALL(
@@ -72,11 +72,11 @@ put3_get_and_del2() ->
           {safe(), safe()},
           begin
               KeyValue = {Key, Value},
-              ?assertEqual({ok, []}, lbm_kv:put(?TABLE, Key, Value)),
-              ?assertEqual({ok, [KeyValue]}, lbm_kv:get(?TABLE, Key)),
-              {ok, Matched} = lbm_kv:match_key(?TABLE, '_'),
+              ?assertEqual({ok, []}, mnkv:put(?TABLE, Key, Value)),
+              ?assertEqual({ok, [KeyValue]}, mnkv:get(?TABLE, Key)),
+              {ok, Matched} = mnkv:match_key(?TABLE, '_'),
               ?assert(lists:member(KeyValue, Matched)),
-              ?assertEqual({ok, [KeyValue]}, lbm_kv:del(?TABLE, Key)),
+              ?assertEqual({ok, [KeyValue]}, mnkv:del(?TABLE, Key)),
               true
           end)).
 
@@ -87,11 +87,11 @@ put2_get_and_del2() ->
           begin
               KeyValue1 = {Key1, Value1},
               KeyValue2 = {Key2, Value2},
-              ?assertEqual({ok, []}, lbm_kv:put(?TABLE, [KeyValue1, KeyValue2])),
-              {ok, Get} = lbm_kv:match_key(?TABLE, '_', dirty),
+              ?assertEqual({ok, []}, mnkv:put(?TABLE, [KeyValue1, KeyValue2])),
+              {ok, Get} = mnkv:match_key(?TABLE, '_', dirty),
               ?assert(lists:member(KeyValue1, Get)),
               ?assert(lists:member(KeyValue2, Get)),
-              {ok, Delete} = lbm_kv:del(?TABLE, [Key1, Key2]),
+              {ok, Delete} = mnkv:del(?TABLE, [Key1, Key2]),
               ?assert(lists:member(KeyValue1, Delete)),
               ?assert(lists:member(KeyValue2, Delete)),
               true
@@ -107,18 +107,18 @@ update() ->
 
               Add = fun(_, undefined) -> {value, Value} end,
               ?assertEqual({ok, {[], [KeyValue]}},
-                           lbm_kv:update(?TABLE, Key, Add)),
-              ?assertEqual({ok, [KeyValue]}, lbm_kv:get(?TABLE, Key)),
+                           mnkv:update(?TABLE, Key, Add)),
+              ?assertEqual({ok, [KeyValue]}, mnkv:get(?TABLE, Key)),
 
               Modify = fun(_, {value, V}) when V == Value -> {value, Update} end,
               ?assertEqual({ok, {[KeyValue], [KeyUpdate]}},
-                           lbm_kv:update(?TABLE, Key, Modify)),
-              ?assertEqual({ok, [KeyUpdate]}, lbm_kv:get(?TABLE, Key)),
+                           mnkv:update(?TABLE, Key, Modify)),
+              ?assertEqual({ok, [KeyUpdate]}, mnkv:get(?TABLE, Key)),
 
               Delete = fun(_, {value, V}) when V == Update -> delete end,
               ?assertEqual({ok, {[KeyUpdate], []}},
-                           lbm_kv:update(?TABLE, Key, Delete)),
-              ?assertEqual({ok, []}, lbm_kv:get(?TABLE, Key)),
+                           mnkv:update(?TABLE, Key, Delete)),
+              ?assertEqual({ok, []}, mnkv:get(?TABLE, Key)),
               true
           end)).
 
@@ -131,99 +131,99 @@ update_table() ->
               KeyUpdate = {Key, Update},
 
               Identity = fun(_, {value, V}) -> {value, V} end,
-              ?assertEqual({ok, {[], []}}, lbm_kv:update(?TABLE, Identity)),
+              ?assertEqual({ok, {[], []}}, mnkv:update(?TABLE, Identity)),
 
               Modify = fun(K, {value, V}) when K == Key, V == Value ->
                                {value, Update};
                           (_, {value, V}) ->
                                {value, V}
                           end,
-              ?assertEqual({ok, []}, lbm_kv:put(?TABLE, Key, Value)),
-              ?assertEqual({ok, [KeyValue]}, lbm_kv:get(?TABLE, Key)),
-              {ok, {Old1, New1}} = lbm_kv:update(?TABLE, Modify),
+              ?assertEqual({ok, []}, mnkv:put(?TABLE, Key, Value)),
+              ?assertEqual({ok, [KeyValue]}, mnkv:get(?TABLE, Key)),
+              {ok, {Old1, New1}} = mnkv:update(?TABLE, Modify),
               ?assert(lists:member(KeyValue, Old1)),
               ?assert(lists:member(KeyUpdate, New1)),
-              ?assertEqual({ok, [KeyUpdate]}, lbm_kv:get(?TABLE, Key)),
+              ?assertEqual({ok, [KeyUpdate]}, mnkv:get(?TABLE, Key)),
 
               Delete = fun(K, {value, V}) when K == Key, V == Update ->
                                delete;
                           (_, {value, V}) ->
                                {value, V}
                        end,
-              {ok, {Old2, New2}} = lbm_kv:update(?TABLE, Delete),
+              {ok, {Old2, New2}} = mnkv:update(?TABLE, Delete),
               ?assert(lists:member(KeyUpdate, Old2)),
               ?assertEqual([], New2),
-              ?assertEqual({ok, []}, lbm_kv:get(?TABLE, Key)),
+              ?assertEqual({ok, []}, mnkv:get(?TABLE, Key)),
 
               DeleteAll = fun(_, _) -> delete end,
-              ?assertEqual({ok, {[], []}}, lbm_kv:update(?TABLE, DeleteAll)),
-              ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')),
+              ?assertEqual({ok, {[], []}}, mnkv:update(?TABLE, DeleteAll)),
+              ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')),
               true
           end)).
 
 integration() ->
     %% initial empty
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')),
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')),
 
     %% info
-    ?assertEqual(ok, lbm_kv:info()),
+    ?assertEqual(ok, mnkv:info()),
 
     %% add key => value
-    ?assertEqual({ok, []}, lbm_kv:put(?TABLE, key, value)),
-    ?assertEqual({ok, [{key, value}]}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, [{key, value}]}, lbm_kv:match_key(?TABLE, '_')),
+    ?assertEqual({ok, []}, mnkv:put(?TABLE, key, value)),
+    ?assertEqual({ok, [{key, value}]}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, [{key, value}]}, mnkv:match_key(?TABLE, '_')),
 
     %% update to key => value1
     Update1 = fun(key, {value, value}) -> {value, value1} end,
     ?assertEqual({ok, {[{key, value}], [{key, value1}]}},
-                 lbm_kv:update(?TABLE, key, Update1)),
-    ?assertEqual({ok, [{key, value1}]}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, [{key, value1}]}, lbm_kv:match_key(?TABLE, '_')),
+                 mnkv:update(?TABLE, key, Update1)),
+    ?assertEqual({ok, [{key, value1}]}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, [{key, value1}]}, mnkv:match_key(?TABLE, '_')),
 
     %% update to key => value2
     UpdateAll1 = fun(key, {value, value1}) -> {value, value2} end,
     ?assertEqual({ok, {[{key, value1}], [{key, value2}]}},
-                 lbm_kv:update(?TABLE, UpdateAll1)),
-    ?assertEqual({ok, [{key, value2}]}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, [{key, value2}]}, lbm_kv:match_key(?TABLE, '_')),
+                 mnkv:update(?TABLE, UpdateAll1)),
+    ?assertEqual({ok, [{key, value2}]}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, [{key, value2}]}, mnkv:match_key(?TABLE, '_')),
 
     %% empty table with update
     Update2 = fun(key, {value, value2}) -> delete end,
     ?assertEqual({ok, {[{key, value2}], []}},
-                 lbm_kv:update(?TABLE, key, Update2)),
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')),
+                 mnkv:update(?TABLE, key, Update2)),
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')),
 
     %% add key => value2
-    ?assertEqual({ok, []}, lbm_kv:put(?TABLE, key, value2)),
-    ?assertEqual({ok, [{key, value2}]}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, [{key, value2}]}, lbm_kv:match_key(?TABLE, '_')),
+    ?assertEqual({ok, []}, mnkv:put(?TABLE, key, value2)),
+    ?assertEqual({ok, [{key, value2}]}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, [{key, value2}]}, mnkv:match_key(?TABLE, '_')),
 
     %% empty table with update_all
     UpdateAll2 = fun(key, {value, value2}) -> delete end,
     ?assertEqual({ok, {[{key, value2}], []}},
-                 lbm_kv:update(?TABLE, UpdateAll2)),
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')),
+                 mnkv:update(?TABLE, UpdateAll2)),
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')),
 
     %% no update for non-existing key
     Update3 = fun(key, undefined) -> undefined end,
-    ?assertEqual({ok, {[], []}}, lbm_kv:update(?TABLE, key, Update3)),
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')),
+    ?assertEqual({ok, {[], []}}, mnkv:update(?TABLE, key, Update3)),
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')),
 
     %% add key => value with update to non-existing key
     Update4 = fun(key, undefined) -> {value, value} end,
     ?assertEqual({ok, {[], [{key, value}]}},
-                 lbm_kv:update(?TABLE, key, Update4)),
-    ?assertEqual({ok, [{key, value}]}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, [{key, value}]}, lbm_kv:match_key(?TABLE, '_')),
+                 mnkv:update(?TABLE, key, Update4)),
+    ?assertEqual({ok, [{key, value}]}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, [{key, value}]}, mnkv:match_key(?TABLE, '_')),
 
     %% del key => value
-    ?assertEqual({ok, [{key, value}]}, lbm_kv:del(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:get(?TABLE, key)),
-    ?assertEqual({ok, []}, lbm_kv:match_key(?TABLE, '_')).
+    ?assertEqual({ok, [{key, value}]}, mnkv:del(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:get(?TABLE, key)),
+    ?assertEqual({ok, []}, mnkv:match_key(?TABLE, '_')).
 
 %%%=============================================================================
 %%% Internal functions
@@ -235,7 +235,7 @@ integration() ->
 setup() ->
     fun() ->
             Apps = setup_apps(),
-            ok = lbm_kv:create(?TABLE),
+            ok = mnkv:create(?TABLE),
             Apps
     end.
 
@@ -245,7 +245,7 @@ setup() ->
 setup_apps() ->
     application:load(sasl),
     ok = application:set_env(sasl, sasl_error_logger, false),
-    {ok, Apps} = application:ensure_all_started(lbm_kv),
+    {ok, Apps} = application:ensure_all_started(mnkv),
     Apps.
 
 %%------------------------------------------------------------------------------

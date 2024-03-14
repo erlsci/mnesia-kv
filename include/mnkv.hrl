@@ -18,14 +18,14 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
 
--ifndef(lbm_kv_hrl_).
--define(lbm_kv_hrl_, 1).
+-ifndef(mnkv_hrl_).
+-define(mnkv_hrl_, 1).
 
-%% The record defining an `lbm_kv' table entry.
--record(lbm_kv, {
-          key :: lbm_kv:key() | '_',
-          val :: lbm_kv:value() | '_',
-          ver :: lbm_kv:version() | '_'}).
+%% The record defining an `mnkv' table entry.
+-record(mnkv, {
+          key :: mnkv:key() | '_',
+          val :: mnkv:value() | '_',
+          ver :: mnkv:version() | '_'}).
 
 %% A special define using a `hidden' mnesia feature to set the `cookie' of a
 %% table (at creation time only). This is needed to be able to merge schemas
@@ -35,22 +35,22 @@
 %% incompatible by default. If two nodes have at least one table with the same
 %% name and differing cookie a schema merge and thus a mnesia-connection between
 %% these nodes will be refused by mnesia.
--define(LBM_KV_COOKIE, {{0,0,0}, lbm_kv}).
+-define(MNKV_COOKIE, {{0,0,0}, mnkv}).
 
 %% The options used in `mnesia:create_table/2'.
--define(LBM_KV_TABLE_OPTS, [{record_name, lbm_kv},
-                            {attributes, record_info(fields, lbm_kv)},
-                            {cookie, ?LBM_KV_COOKIE},
+-define(MNKV_TABLE_OPTS, [{record_name, mnkv},
+                            {attributes, record_info(fields, mnkv)},
+                            {cookie, ?MNKV_COOKIE},
                             {ram_copies, [node() | nodes()]}]).
 
 %% Default timeout for RPC calls.
--define(LBM_KV_RPC_TIMEOUT, 2000).
+-define(MNKV_RPC_TIMEOUT, 2000).
 
 %% Simple debug macro.
 -ifdef(DEBUG).
--define(LBM_KV_DBG(Fmt, Args), io:format(Fmt, Args)).
+-define(MNKV_DBG(Fmt, Args), io:format(Fmt, Args)).
 -else.
--define(LBM_KV_DBG(Fmt, Args), begin _ = Fmt, _ = Args, ok end).
+-define(MNKV_DBG(Fmt, Args), begin _ = Fmt, _ = Args, ok end).
 -endif.
 
--endif. %% lbm_kv_hrl_
+-endif. %% mnkv_hrl_

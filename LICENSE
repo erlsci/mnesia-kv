@@ -1,6 +1,6 @@
-The MIT License (MIT)
+The MIT License (MIT)/
 
-This license applies to all files in this project except for 'lbm_kv_vclock.erl'.
+This license applies to all files in this project except for 'mnkv_vclock.erl'.
 
 Copyright (c) 2014 Lindenbaum GmbH
 
@@ -24,7 +24,7 @@ SOFTWARE.
 
 The Apache License, Version 2.0
 
-This license applies to 'lbm_kv_vclock.erl' solely.
+This license applies to 'mnkv_vclock.erl' solely.
 
 Copyright (c) 2007-2010 Basho Technologies, Inc.  All Rights Reserved.
 

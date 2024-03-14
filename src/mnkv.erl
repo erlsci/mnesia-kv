@@ -19,7 +19,7 @@
 %%%
 %%% @doc
 %%% Provides simple, Mnesia-based, distributed key value tables. When started,
-%%% this application distributes Mnesia (and all `lbm_kv' tables) over all
+%%% this application distributes Mnesia (and all `mnkv' tables) over all
 %%% dynamically connected nodes. The Mnesia cluster can grow and shrink
 %%% dynamically.
 %%%
@@ -28,48 +28,43 @@
 %%% automatically be replicated to other nodes as new node connections are
 %%% detected. Every connected node has read and write access to all Mnesia
 %%% tables. If desired, it is possible to use the default Mnesia API to
-%%% manipulate `lbm_kv' tables. However, `lbm_kv' uses vector clocks that need
+%%% manipulate `mnkv' tables. However, `mnkv' uses vector clocks that need
 %%% to be updated on every write to be able to use automatic netsplit recovery!
-%%% Use the `#lbm_kv{}' record from the `lbm_kv.hrl' header file to match
-%%% `lbm_kv' table entries.
+%%% Use the `#mnkv{}' record from the `mnkv.hrl' header file to match
+%%% `mnkv' table entries.
 %%%
-%%% Every `lbm_kv' table uses vector clocks to keep track of the its entries.
-%%% In case of new node connections or netsplits, `lbm_kv' will use these to
+%%% Every `mnkv' table uses vector clocks to keep track of the its entries.
+%%% In case of new node connections or netsplits, `mnkv' will use these to
 %%% merge the island itself without interaction. However, if there are diverged
-%%% entries `lbm_kv' will look for a user defined callback to resolve the
+%%% entries `mnkv' will look for a user defined callback to resolve the
 %%% conflict. If no such callback can be found one of the conflicting nodes will
 %%% be restarted!
 %%%
-%%% To be able to use `lbm_kv' none of the connected nodes is allowed to have
+%%% To be able to use `mnkv' none of the connected nodes is allowed to have
 %%% `disk_copies' of its `schema' table, because Mnesia will fail to merge
 %%% schemas on disk nodes (which means that it is likely they can't
 %%% participate). If you need `disk_copies', you're on your own here. Do not
 %%% mess with table replication and mnesia configuration changes yourself!
-%%% There's a lot of black magic happening inside Mnesia and `lbm_kv' will do
+%%% There's a lot of black magic happening inside Mnesia and `mnkv' will do
 %%% the necessary tricks and workarounds for you. At best you should avoid
-%%% having tables created from outside `lbm_kv'. At least do not create tables
+%%% having tables created from outside `mnkv'. At least do not create tables
 %%% with conflicting names.
 %%% @end
 %%%=============================================================================
 
--module(lbm_kv).
+-module(mnkv).
 
 -behaviour(application).
 -behaviour(supervisor).
 
 %% API
 -export([create/1,
-         put/3,
-         put/2,
+         put/2, put/3,
          del/2,
-         get/2,
-         get/3,
-         match_key/2,
-         match_key/3,
-         match/3,
-         match/4,
-         update/2,
-         update/3,
+         get/2, get/3,
+         match_key/2, match_key/3,
+         match/3, match/4,
+         update/2, update/3,
          info/0]).
 
 %% Application callbacks
@@ -87,7 +82,7 @@
 %% Unfortunately, Mnesia is quite picky when it comes to allowed types for
 %% values, e.g. all special atoms of `match_specs' are not allowed and lead to
 %% undefined behaviour when used.
--type version() :: lbm_kv_vclock:vclock().
+-type version() :: mnkv_vclock:vclock().
 %% A type describing the version of a table entry.
 
 -type update_fun() :: fun((key(), {value, value()} | undefined) ->
@@ -101,7 +96,7 @@
 
 -export_type([table/0, key/0, value/0, version/0, update_fun/0]).
 
--include("lbm_kv.hrl").
+-include("mnkv.hrl").
 
 %%%=============================================================================
 %%% Behaviour
@@ -141,7 +136,7 @@
 %%------------------------------------------------------------------------------
 -spec create(table()) -> ok | {error, term()}.
 create(Table) ->
-    case mnesia:create_table(Table, ?LBM_KV_TABLE_OPTS) of
+    case mnesia:create_table(Table, ?MNKV_TABLE_OPTS) of
         {atomic, ok} ->
             await_table(Table);
         {aborted, {already_exists, Table}} ->
@@ -287,11 +282,11 @@ update(Table, Key, Fun) when is_function(Fun) ->
 
 %%------------------------------------------------------------------------------
 %% @doc
-%% Print information about the `lbm_kv' state to stdout.
+%% Print information about the `mnkv' state to stdout.
 %% @end
 %%------------------------------------------------------------------------------
 -spec info() -> ok.
-info() -> lbm_kv_mon:info().
+info() -> mnkv_mon:info().
 
 %%%=============================================================================
 %%% Application callbacks
@@ -314,7 +309,7 @@ stop(_State) -> ok.
 %%------------------------------------------------------------------------------
 %% @private
 %%------------------------------------------------------------------------------
-init([]) -> {ok, {{one_for_one, 5, 1}, [spec(lbm_kv_mon, [])]}}.
+init([]) -> {ok, {{one_for_one, 5, 1}, [spec(mnkv_mon, [])]}}.
 
 %%%=============================================================================
 %%% internal functions
@@ -396,7 +391,7 @@ dirty(Tab, Key, Function) ->
 %% @private
 %% Read `Key' from `Tab', only allowed within transaction context.
 %%------------------------------------------------------------------------------
--spec r(table(), key(), read | write) -> [#lbm_kv{}].
+-spec r(table(), key(), read | write) -> [#mnkv{}].
 r(Tab, Key, Lock) -> mnesia:read(Tab, Key, Lock).
 
 %%------------------------------------------------------------------------------
@@ -405,7 +400,7 @@ r(Tab, Key, Lock) -> mnesia:read(Tab, Key, Lock).
 %% allowed within transaction
 %% context.
 %%------------------------------------------------------------------------------
--spec m(table(), key(), value(), read | write) -> [#lbm_kv{}].
+-spec m(table(), key(), value(), read | write) -> [#mnkv{}].
 m(Tab, KeySpec, ValueSpec, Lock) ->
     mnesia:select(Tab, m_spec(KeySpec, ValueSpec), Lock).
 
@@ -414,7 +409,7 @@ m(Tab, KeySpec, ValueSpec, Lock) ->
 %%------------------------------------------------------------------------------
 -spec m_spec(key(), value()) -> [tuple()].
 m_spec(KeySpec, ValueSpec) ->
-    [{#lbm_kv{key = KeySpec, val = ValueSpec, _ = '_'}, [], ['$_']}].
+    [{#mnkv{key = KeySpec, val = ValueSpec, _ = '_'}, [], ['$_']}].
 
 %%------------------------------------------------------------------------------
 %% @private
@@ -423,8 +418,8 @@ m_spec(KeySpec, ValueSpec) ->
 %%------------------------------------------------------------------------------
 -spec w(table(), key(), value(), version()) -> ok.
 w(Tab, Key, Val, Ver) ->
-    NewVer = lbm_kv_vclock:increment(node(), Ver),
-    mnesia:write(Tab, #lbm_kv{key = Key, val = Val, ver = NewVer}, write).
+    NewVer = mnkv_vclock:increment(node(), Ver),
+    mnesia:write(Tab, #mnkv{key = Key, val = Val, ver = NewVer}, write).
 
 %%------------------------------------------------------------------------------
 %% @private
@@ -439,7 +434,7 @@ d(Tab, Key, Lock) -> mnesia:delete(Tab, Key, Lock).
 %% Read all mappings for `Key' or `Keys' in `Tab', delete them and return the
 %% previous mappings. Only allowed within transaction context.
 %%------------------------------------------------------------------------------
--spec r_and_d(table(), key() | [key()]) -> [#lbm_kv{}].
+-spec r_and_d(table(), key() | [key()]) -> [#mnkv{}].
 r_and_d(Tab, Keys) when is_list(Keys) ->
     lists:append([r_and_d(Tab, Key) || Key <- Keys]);
 r_and_d(Tab, Key) ->
@@ -451,7 +446,7 @@ r_and_d(Tab, Key) ->
 %% @private
 %% Similar to {@link r_and_w/3} but operates on an input list.
 %%------------------------------------------------------------------------------
--spec r_and_w(table(), [{key(), value()}]) -> [#lbm_kv{}].
+-spec r_and_w(table(), [{key(), value()}]) -> [#mnkv{}].
 r_and_w(Tab, KeyValues) ->
     lists:append([r_and_w(Tab, Key, Val) || {Key, Val} <- KeyValues]).
 
@@ -461,15 +456,15 @@ r_and_w(Tab, KeyValues) ->
 %% `Val' and return the previous mappings. Only allowed within transaction
 %% context.
 %%------------------------------------------------------------------------------
--spec r_and_w(table(), key(), value()) -> [#lbm_kv{}].
+-spec r_and_w(table(), key(), value()) -> [#mnkv{}].
 r_and_w(Tab, Key, Val) ->
     case r(Tab, Key, write) of
-        Records = [#lbm_kv{key = Key, val = Val} | _] ->
+        Records = [#mnkv{key = Key, val = Val} | _] ->
             ok; %% no change, no write
-        Records = [#lbm_kv{key = Key, ver = Ver} | _] ->
+        Records = [#mnkv{key = Key, ver = Ver} | _] ->
             ok = w(Tab, Key, Val, Ver);
         Records = [] ->
-            ok = w(Tab, Key, Val, lbm_kv_vclock:fresh())
+            ok = w(Tab, Key, Val, mnkv_vclock:fresh())
     end,
     Records.
 
@@ -478,7 +473,7 @@ r_and_w(Tab, Key, Val) ->
 %% Update the mappings for all `Key's in a table. Only allowed within
 %% transaction context.
 %%------------------------------------------------------------------------------
--spec u(table(), update_fun()) -> {[#lbm_kv{}], [#lbm_kv{}]}.
+-spec u(table(), update_fun()) -> {[#mnkv{}], [#mnkv{}]}.
 u(Tab, Fun) ->
     {A, B} = lists:unzip([u(Tab, Fun, Key) || Key <- mnesia:all_keys(Tab)]),
     {lists:append(A), lists:append(B)}.
@@ -487,10 +482,10 @@ u(Tab, Fun) ->
 %% @private
 %% Update the mapping for `Key'. Only allowed within transaction context.
 %%------------------------------------------------------------------------------
--spec u(table(), update_fun(), key()) -> {[#lbm_kv{}], [#lbm_kv{}]}.
+-spec u(table(), update_fun(), key()) -> {[#mnkv{}], [#mnkv{}]}.
 u(Tab, Fun, Key) ->
     case r(Tab, Key, write) of
-        Old = [#lbm_kv{key = Key, val = Val, ver = Ver} | _] ->
+        Old = [#mnkv{key = Key, val = Val, ver = Ver} | _] ->
             case Fun(Key, {value, Val}) of
                 {value, Val} ->
                     ok; %% no change, no write
@@ -503,7 +498,7 @@ u(Tab, Fun, Key) ->
         Old = [] ->
             case Fun(Key, undefined) of
                 {value, Val} ->
-                    ok = w(Tab, Key, Val, lbm_kv_vclock:fresh());
+                    ok = w(Tab, Key, Val, mnkv_vclock:fresh());
                 _ ->
                     ok %% delete on non-existent entry
             end
@@ -513,12 +508,12 @@ u(Tab, Fun, Key) ->
 %%------------------------------------------------------------------------------
 %% @private
 %%------------------------------------------------------------------------------
--spec strip_l([#lbm_kv{}]) -> [{key(), value()}].
-strip_l(Records) -> [{K, V} || #lbm_kv{key = K, val = V} <- Records].
+-spec strip_l([#mnkv{}]) -> [{key(), value()}].
+strip_l(Records) -> [{K, V} || #mnkv{key = K, val = V} <- Records].
 
 %%------------------------------------------------------------------------------
 %% @private
 %%------------------------------------------------------------------------------
--spec strip_t({[#lbm_kv{}], [#lbm_kv{}]}) ->
+-spec strip_t({[#mnkv{}], [#mnkv{}]}) ->
                      {[{key(), value()}], [{key(), value()}]}.
 strip_t({A, B}) -> {strip_l(A), strip_l(B)}.
