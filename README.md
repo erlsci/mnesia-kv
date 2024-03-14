@@ -1,11 +1,15 @@
-[![Build Status](https://github.com/lindenbaum/lbm_kv/workflows/.github/workflows/test.yml/badge.svg?branch=master)](https://github.com/lindenbaum/lbm_kv/actions)
-[![Old Build Status (TRAVIS)](https://travis-ci.org/lindenbaum/lbm_kv.png?branch=master)](https://travis-ci.org/lindenbaum/lbm_kv)
+[![Build Status][gh-actions-badge]][gh-actions]
+[![Erlang Versions][erlang-badge]][versions]
+[![Tags][github-tags-badge]][github-tags]
 
-lbm_kv
-======
+*A dynamically-distributed, highly-available, partition-tolerant, in-memory
+key-value store built with [Mnesia](http://www.erlang.org/doc/apps/mnesia/)*
 
-A dynamically-distributed, highly-available, partition-tolerant, in-memory
-key-value store built with [Mnesia](http://www.erlang.org/doc/apps/mnesia/).
+# mnesia-kv
+
+Note: this project is just a fork of [lbm_kv](https://github.com/lindenbaum/lbm_kv), created to push out some more recent releases.
+
+## About
 
 One of the main goals of this application is to enable developers to enjoy the
 pleasures of distributed Mnesia without the need of exploring the complex
@@ -13,8 +17,7 @@ background. Therefore, `lbm_kv` provides a primitive API along with code to
 handle and work around the dirty details and pitfals related to distributed
 Mnesia.
 
-Why use it?
------------
+### Why use it?
 
 Mnesia is a powerful DBMS with support for table replication, transactions,
 netsplit detection and much more. _So why use something on top of it?_
@@ -22,8 +25,7 @@ Unfortunately, as with other powerful DBMSs its use is quite complex and making
 a Mnesia cluster dynamic requires a lot of research and the use of
 _undocumented_ features. `lbm_kv` is here to release you from this pain.
 
-What does lbm_kv offer?
------------------------
+### What does lbm_kv offer?
 
 * Mnesia replication management in dynamic Erlang clusters
 * automated table merges and netsplit recovery based on
@@ -33,8 +35,12 @@ What does lbm_kv offer?
 * small, documented, fully-typed code-base
 * no additional/transitive dependencies introduced
 
-How does it work?
------------------
+### Examples
+
+A very simple example application/release can be found
+[here](https://github.com/lindenbaum/sequencer_sample).
+
+## How does it work?
 
 `lbm_kv` is a simple Erlang application that gets dropped into your release. It
 is not necessary to know the cluster topology in advance, since `lbm_kv` can
@@ -63,8 +69,11 @@ user callback gets involved). This means that if a mapping gets deleted during
 a netsplit, the mapping might get re-established when the netsplit gets
 resolved.
 
-Examples
---------
+[//]: ---Named-Links---
 
-A very simple example application/release can be found
-[here](https://github.com/lindenbaum/sequencer_sample).
+[gh-actions-badge]: https://github.com/erlsci/mnesia-kv/workflows/ci%2Fcd/badge.svg
+[gh-actions]: https://github.com/erlsci/mnesia-kv/actions
+[erlang-badge]: https://img.shields.io/badge/erlang-21%20to%2026-blue.svg
+[versions]: https://github.com/erlsci/mnesia-kv/blob/master/.github/workflows/cicd.yml
+[github-tags]: https://github.com/erlsci/mnesia-kv/tags
+[github-tags-badge]: https://img.shields.io/github/tag/erlsci/mnesia-kv.svg
