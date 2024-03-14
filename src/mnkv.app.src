@@ -17,25 +17,25 @@
 %%% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
-{application,
- mnkv,
- [
+{application, mnkv, [
   {description, "A simple, distributed, Mnesia-based key-value-store."},
   {vsn, "0.1.0"},
-  {registered,
-   [
-    mnesiakv_mon
-   ]},
-  {applications,
-   [
+  {registered, [mnkv_mon]},
+  {applications, [
     kernel,
     stdlib,
     sasl,
     mnesia
-   ]},
+  ]},
   {mod, {mnkv, []}},
   {env, []},
   {maintainers, ["Tobias Schlager", "Sven Heyll", "Timo Koepke"]},
+
+  %% Package metadata:
+  {pkg_name, mnkv},
   {licenses, ["MIT"]},
-  {links, [{"Github", "https://github.com/lindenbaum/lbm_kv"}]}
- ]}.
+  {links, [
+    {"Github (original)", "https://github.com/lindenbaum/lbm_kv"},
+    {"Github (fork)", "https://github.com/erlsci/mnesia-kv"}
+  ]}
+]}.
