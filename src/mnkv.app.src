@@ -36,6 +36,6 @@
   {licenses, ["MIT"]},
   {links, [
     {"Github (original)", "https://github.com/lindenbaum/lbm_kv"},
-    {"Github (fork)", "https://github.com/erlsci/mnesia-kv"}
+    {"Github (this fork)", "https://github.com/erlsci/mnesia-kv"}
   ]}
 ]}.
