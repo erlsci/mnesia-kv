@@ -18,7 +18,7 @@
 %%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 %%%=============================================================================
 {application, mnkv, [
-  {description, "A simple, distributed, Mnesia-based key-value-store."},
+  {description, "A simple, distributed, Mnesia-based key-value store (fork of lbm_kv)."},
   {vsn, "0.1.0"},
   {registered, [mnkv_mon]},
   {applications, [
